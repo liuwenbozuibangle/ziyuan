@@ -1,0 +1,95 @@
+public function add()
+    {
+
+        if ($this->request->isPost()) {
+            $params = $this->request->post("row/a");
+            if ($params) {
+                $params = $this->preExcludeFields($params);
+
+                if ($this->dataLimit && $this->dataLimitFieldAutoFill) {
+                    $params[$this->dataLimitField] = $this->auth->id;
+                }
+                //here we concat the xmbm by hhr and company
+                $companys=$params['company'];
+                $yw_type=$params['yw_type'];
+
+                switch ($companys)//这是表达式
+                {
+                    case "视宁":// case 后跟常量
+                        $company = "A";
+                        break;
+                    case "思亮":
+                        $company = "B";
+                        break;
+                    case "立马订":
+                        $company = "C";
+                        break;
+                }
+
+                switch ($yw_type)//这是表达式
+                {
+                    case "工程":// case 后跟常量
+                        $yw_type = "GC";
+                        break;
+                    case "维保":
+                        $yw_type = "WB";
+                        break;
+                    case "销售":
+                        $yw_type = "XS";
+                        break;
+                    case "自营":
+                        $yw_type = "ZY";
+                        break;
+                    case "软件":
+                        $yw_type = "RJ";
+                        break;
+
+                }
+                $number = db('obj')->where('company',$companys)->count('id');
+                
+                if (empty($number)){
+                    $number="0001";
+                }elseif (strlen($number) == 3 |$number == 99){
+                    $number =$number+1;
+                    $number = '0'.$number;
+                }elseif (strlen($number)==2 |$number == 9){
+                    $number =$number+1;
+                    $number = '00'.$number;
+                }elseif (strlen($number)==1 ){
+                    $number =$number+1;
+                    $number = '000'.$number;
+                }
+                $lx=$company."-".$yw_type."-".date('Y')."-".$number."-"."LX";
+                $params['xmbm'] = $lx;
+                $result = false;
+
+                Db::startTrans();
+                try {
+                    //是否采用模型验证
+                    if ($this->modelValidate) {
+                        $name = str_replace("\\model\\", "\\validate\\", get_class($this->model));
+                        $validate = is_bool($this->modelValidate) ? ($this->modelSceneValidate ? $name . '.add' : $name) : $this->modelValidate;
+                        $this->model->validateFailException(true)->validate($validate);
+                    }
+                    $result = $this->model->allowField(true)->save($params);
+                    Db::commit();
+                } catch (ValidateException $e) {
+                    Db::rollback();
+                    $this->error($e->getMessage());
+                } catch (PDOException $e) {
+                    Db::rollback();
+                    $this->error($e->getMessage());
+                } catch (Exception $e) {
+                    Db::rollback();
+                    $this->error($e->getMessage());
+                }
+                if ($result !== false) {
+                    $this->success();
+                } else {
+                    $this->error(__('No rows were inserted'));
+                }
+            }
+            $this->error(__('Parameter %s can not be empty', ''));
+        }
+        return $this->view->fetch();
+    }
